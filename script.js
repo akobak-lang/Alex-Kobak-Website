@@ -58,76 +58,38 @@
     });
   }
 
-  // --- Video Thumbnail Keyframes ---
-  // Each cell gets a stagger delay based on its diagonal position in the
-  // 4-column grid (col + row) × 70ms, anchored to page-load time so the
-  // pattern is consistent regardless of which videos load first.
+  // --- Thumbnail Stagger Fade-In ---
+  // Static JPEG thumbnails load near-instantly. Each cell fades up with a
+  // diagonal stagger (col + row) × 70ms anchored to page load, so the
+  // pattern is consistent regardless of image load order.
 
-  const videoCells = Array.from(document.querySelectorAll('.video-cell'));
-  const PAGE_LOAD  = performance.now();
+  const videoCells  = Array.from(document.querySelectorAll('.video-cell'));
+  const PAGE_LOAD   = performance.now();
   const STAGGER_START = 200; // ms after page load before fades begin
 
   videoCells.forEach((cell, i) => {
     const col = i % 4;
     const row = Math.floor(i / 4);
-    cell._staggerTarget = PAGE_LOAD + STAGGER_START + (col + row) * 70;
-  });
+    const staggerTarget = PAGE_LOAD + STAGGER_START + (col + row) * 70;
 
-  videoCells.forEach((cell) => {
-    const video   = cell.querySelector('.thumb-video');
-    if (!video) return;
+    const img = cell.querySelector('.thumb-img');
+    if (!img) return;
 
-    const seekSec = parseFloat(cell.dataset.seek);
-    const TARGET  = () => (!isNaN(seekSec) && seekSec > 0)
-      ? seekSec
-      : Math.max(1, (video.duration || 30) * 0.10);
-
-    const doSeek = () => { video.currentTime = TARGET(); };
-
-    // Fade in with the remaining stagger delay (clamped to 0 if overdue)
     function markReady() {
       if (cell.classList.contains('thumb-ready')) return;
-      const remaining = Math.max(0, cell._staggerTarget - performance.now());
-      video.style.transitionDelay = remaining + 'ms';
+      const remaining = Math.max(0, staggerTarget - performance.now());
+      img.style.transitionDelay = remaining + 'ms';
       cell.classList.add('thumb-ready');
-      // Reset delay after fade so hover responds instantly
-      setTimeout(() => { video.style.transitionDelay = '0ms'; }, remaining + 900);
+      // Reset delay so hover responds instantly after fade-in
+      setTimeout(() => { img.style.transitionDelay = '0ms'; }, remaining + 900);
     }
 
-    video.addEventListener('seeked', () => {
-      if (video.currentTime < 0.5) {
-        setTimeout(doSeek, 400);
-      } else {
-        markReady();
-      }
-    });
-
-    // loadeddata fires when the first frame is available — useful on iOS
-    // where loadedmetadata may fire but the seek still needs a nudge
-    video.addEventListener('loadeddata', () => {
-      if (!cell.classList.contains('thumb-ready')) doSeek();
-    }, { once: true });
-
-    if (video.readyState >= 1 && video.duration) {
-      doSeek();
+    if (img.complete) {
+      markReady();
     } else {
-      video.addEventListener('loadedmetadata', doSeek, { once: true });
+      img.addEventListener('load',  markReady, { once: true });
+      img.addEventListener('error', markReady, { once: true }); // fail gracefully
     }
-
-    // Explicit load() forces iOS Safari to honour preload="metadata"
-    video.load();
-
-    // Extended retries for slow mobile connections
-    [1500, 3500, 6000].forEach((delay) => {
-      setTimeout(() => {
-        if (cell.classList.contains('thumb-ready')) return;
-        if (video.duration && video.currentTime < 0.5) {
-          doSeek();
-        } else if (video.currentTime >= 0.5) {
-          markReady();
-        }
-      }, delay);
-    });
   });
 
   // --- Lightbox ---
