@@ -73,6 +73,8 @@
     video.addEventListener('seeked', () => {
       if (video.currentTime < 0.5) {
         setTimeout(doSeek, 400);
+      } else {
+        cell.classList.add('thumb-ready');
       }
     });
 
@@ -83,7 +85,11 @@
     }
 
     setTimeout(() => {
-      if (video.currentTime < 0.5 && video.duration) doSeek();
+      if (video.currentTime < 0.5 && video.duration) {
+        doSeek();
+      } else if (video.currentTime >= 0.5) {
+        cell.classList.add('thumb-ready');
+      }
     }, 1500);
   });
 
