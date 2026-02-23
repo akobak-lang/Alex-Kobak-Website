@@ -102,19 +102,32 @@
       }
     });
 
+    // loadeddata fires when the first frame is available — useful on iOS
+    // where loadedmetadata may fire but the seek still needs a nudge
+    video.addEventListener('loadeddata', () => {
+      if (!cell.classList.contains('thumb-ready')) doSeek();
+    }, { once: true });
+
     if (video.readyState >= 1 && video.duration) {
       doSeek();
     } else {
       video.addEventListener('loadedmetadata', doSeek, { once: true });
     }
 
-    setTimeout(() => {
-      if (video.currentTime < 0.5 && video.duration) {
-        doSeek();
-      } else if (video.currentTime >= 0.5) {
-        markReady();
-      }
-    }, 1500);
+    // Explicit load() forces iOS Safari to honour preload="metadata"
+    video.load();
+
+    // Extended retries for slow mobile connections
+    [1500, 3500, 6000].forEach((delay) => {
+      setTimeout(() => {
+        if (cell.classList.contains('thumb-ready')) return;
+        if (video.duration && video.currentTime < 0.5) {
+          doSeek();
+        } else if (video.currentTime >= 0.5) {
+          markReady();
+        }
+      }, delay);
+    });
   });
 
   // --- Lightbox ---
