@@ -465,33 +465,6 @@ img {
   cursor: pointer;
 }
 
-/* Shimmer skeleton shown while thumbnail is loading */
-.video-cell::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    #111114 0%,
-    #1c1c22 50%,
-    #111114 100%
-  );
-  background-size: 200% 100%;
-  animation: cell-shimmer 1.8s ease-in-out infinite;
-  z-index: 1;
-  opacity: 1;
-  transition: opacity 0.5s ease;
-  pointer-events: none;
-}
-
-.video-cell.thumb-ready::before {
-  opacity: 0;
-}
-
-@keyframes cell-shimmer {
-  0%   { background-position:  200% 0; }
-  100% { background-position: -200% 0; }
-}
 
 .video-cell .thumb-video {
   width: 100%;
