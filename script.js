@@ -58,27 +58,29 @@
     });
   }
 
-  // --- Video Thumbnail Keyframes ---
-  // Seek each thumbnail to an interesting frame.
-  // Per-cell override via data-seek attribute (0–1 fraction); default 10%.
-  // We retry via 'seeked' + a fallback timer since the browser
-  // may need to fetch additional data after setting currentTime.
-  document.querySelectorAll('.thumb-video').forEach((video) => {
-    const cell    = video.closest('.video-cell');
-    const seekSec = parseFloat(cell && cell.dataset.seek);
-    // data-seek is now absolute seconds; fall back to 10% of duration
+  // --- Video Thumbnail Keyframes (lazy-loaded) ---
+  // Videos start with preload="none". We watch each cell with
+  // IntersectionObserver and only begin fetching metadata once the
+  // cell is near the viewport — so the page loads fast and thumbnails
+  // appear progressively as the user scrolls.
+
+  function initThumb(cell) {
+    const video   = cell.querySelector('.thumb-video');
+    if (!video || video.dataset.thumbInit) return;
+    video.dataset.thumbInit = '1';
+
+    const seekSec = parseFloat(cell.dataset.seek);
     const TARGET  = () => (!isNaN(seekSec) && seekSec > 0)
       ? seekSec
       : Math.max(1, (video.duration || 30) * 0.10);
 
-    const doSeek = () => {
-      video.currentTime = TARGET();
-    };
+    const doSeek = () => { video.currentTime = TARGET(); };
 
-    // Once the seek completes, the frame is painted — nothing more to do.
-    // If currentTime resets to 0 it means the seek failed; retry once.
+    // Mark cell as ready once the right frame is painted
     video.addEventListener('seeked', () => {
-      if (video.currentTime < 0.5) {
+      if (video.currentTime >= TARGET() - 1) {
+        cell.classList.add('thumb-ready');
+      } else {
         setTimeout(doSeek, 400);
       }
     });
@@ -89,11 +91,31 @@
       video.addEventListener('loadedmetadata', doSeek, { once: true });
     }
 
-    // Belt-and-suspenders: try again 1.5s later for slow-loading videos
+    // Fallback: force another attempt after 2s for slow connections
     setTimeout(() => {
-      if (video.currentTime < 0.5 && video.duration) doSeek();
-    }, 1500);
-  });
+      if (!cell.classList.contains('thumb-ready') && video.duration) doSeek();
+    }, 2000);
+
+    // Kick off the metadata fetch now
+    video.preload = 'metadata';
+    video.load();
+  }
+
+  // Preload 400px before the cell enters the viewport so it's usually
+  // ready by the time the user sees it.
+  const thumbObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
+          initThumb(entry.target);
+          thumbObserver.unobserve(entry.target);
+        }
+      });
+    },
+    { rootMargin: '400px 0px', threshold: 0 }
+  );
+
+  document.querySelectorAll('.video-cell').forEach((cell) => thumbObserver.observe(cell));
 
   // --- Lightbox ---
   const lightbox     = document.getElementById('lightbox');
