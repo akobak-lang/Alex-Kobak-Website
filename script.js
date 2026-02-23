@@ -59,22 +59,46 @@
   }
 
   // --- Video Thumbnail Keyframes ---
-  // Seek each thumbnail to the frame specified by data-seek (seconds).
-  // All videos load their metadata in parallel; default fallback is 10%.
-  document.querySelectorAll('.thumb-video').forEach((video) => {
-    const cell    = video.closest('.video-cell');
-    const seekSec = parseFloat(cell && cell.dataset.seek);
+  // Each cell gets a stagger delay based on its diagonal position in the
+  // 4-column grid (col + row) × 70ms, anchored to page-load time so the
+  // pattern is consistent regardless of which videos load first.
+
+  const videoCells = Array.from(document.querySelectorAll('.video-cell'));
+  const PAGE_LOAD  = performance.now();
+  const STAGGER_START = 200; // ms after page load before fades begin
+
+  videoCells.forEach((cell, i) => {
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    cell._staggerTarget = PAGE_LOAD + STAGGER_START + (col + row) * 70;
+  });
+
+  videoCells.forEach((cell) => {
+    const video   = cell.querySelector('.thumb-video');
+    if (!video) return;
+
+    const seekSec = parseFloat(cell.dataset.seek);
     const TARGET  = () => (!isNaN(seekSec) && seekSec > 0)
       ? seekSec
       : Math.max(1, (video.duration || 30) * 0.10);
 
     const doSeek = () => { video.currentTime = TARGET(); };
 
+    // Fade in with the remaining stagger delay (clamped to 0 if overdue)
+    function markReady() {
+      if (cell.classList.contains('thumb-ready')) return;
+      const remaining = Math.max(0, cell._staggerTarget - performance.now());
+      video.style.transitionDelay = remaining + 'ms';
+      cell.classList.add('thumb-ready');
+      // Reset delay after fade so hover responds instantly
+      setTimeout(() => { video.style.transitionDelay = '0ms'; }, remaining + 900);
+    }
+
     video.addEventListener('seeked', () => {
       if (video.currentTime < 0.5) {
         setTimeout(doSeek, 400);
       } else {
-        cell.classList.add('thumb-ready');
+        markReady();
       }
     });
 
@@ -88,7 +112,7 @@
       if (video.currentTime < 0.5 && video.duration) {
         doSeek();
       } else if (video.currentTime >= 0.5) {
-        cell.classList.add('thumb-ready');
+        markReady();
       }
     }, 1500);
   });
