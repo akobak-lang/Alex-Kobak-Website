@@ -1,0 +1,27 @@
+# Claude internal files
+.claude/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+
+# Original high-res source files (not needed for web)
+spots/*.mov
+
+# Large source mp4s not used by the site
+spots/3\ -\ "Plushie"\ -\ Noam\ Murro.mp4
+spots/mp4/28\ -\ "Waltz"\ -\ Sean\ Thonson.mp4
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
