@@ -58,29 +58,20 @@
     });
   }
 
-  // --- Video Thumbnail Keyframes (lazy-loaded) ---
-  // Videos start with preload="none". We watch each cell with
-  // IntersectionObserver and only begin fetching metadata once the
-  // cell is near the viewport — so the page loads fast and thumbnails
-  // appear progressively as the user scrolls.
-
-  function initThumb(cell) {
-    const video   = cell.querySelector('.thumb-video');
-    if (!video || video.dataset.thumbInit) return;
-    video.dataset.thumbInit = '1';
-
-    const seekSec = parseFloat(cell.dataset.seek);
+  // --- Video Thumbnail Keyframes ---
+  // Seek each thumbnail to the frame specified by data-seek (seconds).
+  // All videos load their metadata in parallel; default fallback is 10%.
+  document.querySelectorAll('.thumb-video').forEach((video) => {
+    const cell    = video.closest('.video-cell');
+    const seekSec = parseFloat(cell && cell.dataset.seek);
     const TARGET  = () => (!isNaN(seekSec) && seekSec > 0)
       ? seekSec
       : Math.max(1, (video.duration || 30) * 0.10);
 
     const doSeek = () => { video.currentTime = TARGET(); };
 
-    // Mark cell as ready once the right frame is painted
     video.addEventListener('seeked', () => {
-      if (video.currentTime >= TARGET() - 1) {
-        cell.classList.add('thumb-ready');
-      } else {
+      if (video.currentTime < 0.5) {
         setTimeout(doSeek, 400);
       }
     });
@@ -91,31 +82,10 @@
       video.addEventListener('loadedmetadata', doSeek, { once: true });
     }
 
-    // Fallback: force another attempt after 2s for slow connections
     setTimeout(() => {
-      if (!cell.classList.contains('thumb-ready') && video.duration) doSeek();
-    }, 2000);
-
-    // Kick off the metadata fetch now
-    video.preload = 'metadata';
-    video.load();
-  }
-
-  // Preload 400px before the cell enters the viewport so it's usually
-  // ready by the time the user sees it.
-  const thumbObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          initThumb(entry.target);
-          thumbObserver.unobserve(entry.target);
-        }
-      });
-    },
-    { rootMargin: '400px 0px', threshold: 0 }
-  );
-
-  document.querySelectorAll('.video-cell').forEach((cell) => thumbObserver.observe(cell));
+      if (video.currentTime < 0.5 && video.duration) doSeek();
+    }, 1500);
+  });
 
   // --- Lightbox ---
   const lightbox     = document.getElementById('lightbox');
